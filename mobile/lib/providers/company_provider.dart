@@ -2,66 +2,62 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/company.dart';
-import '../models/company_profile.dart';
 
 class CompanyProvider with ChangeNotifier {
-  final String baseUrl = "http://10.0.2.2:8080/api"; // Emulator fix
-
   List<Company> _companies = [];
-  bool _loadingCompanies = false;
-
-  CompanyProfile? _selectedProfile;
-  bool _loadingDetails = false;
+  bool loadingCompanies = false;
 
   List<Company> get companies => _companies;
-  bool get loadingCompanies => _loadingCompanies;
 
-  CompanyProfile? get selectedProfile => _selectedProfile;
-  bool get loadingDetails => _loadingDetails;
+  final String baseUrl = "http://10.0.2.2:8080/api";
 
-  // Fetch company list
+  // Local list of company symbols to fetch data for
+  final List<String> symbols = ["AAPL", "MSFT", "GOOGL"];
+
+  /// Fetch data for all companies from local symbols list
   Future<void> fetchCompanies() async {
-    _loadingCompanies = true;
+    loadingCompanies = true;
     notifyListeners();
 
     try {
-      final response = await http.get(Uri.parse("$baseUrl/companyProfiles/all"));
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        _companies = data.map((json) => Company.fromJson(json)).toList();
-      } else {
-        _companies = [];
-      }
+      List<Company> results = [];
+
+      // Fetch combined data for each symbol in parallel
+      await Future.wait(symbols.map((symbol) async {
+        final company = await fetchMarketData(symbol);
+        if (company != null) {
+          results.add(company);
+        }
+      }));
+
+      _companies = results;
     } catch (e) {
+      debugPrint("Error fetching companies: $e");
       _companies = [];
-    } finally {
-      _loadingCompanies = false;
-      notifyListeners();
     }
+
+    loadingCompanies = false;
+    notifyListeners();
   }
 
-  // Fetch company profile
-  Future<void> fetchCompanyDetails(String symbol) async {
-    _loadingDetails = true;
-    notifyListeners();
-
+  /// Fetch market data for a single company symbol from /market/combined endpoint
+  Future<Company?> fetchMarketData(String symbol) async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/companyProfiles/$symbol?live=true"));
+      final response =
+      await http.get(Uri.parse("$baseUrl/market/combined?symbol=$symbol"));
       if (response.statusCode == 200) {
-        _selectedProfile = CompanyProfile.fromJson(json.decode(response.body));
+        final data = json.decode(response.body);
+
+        // Parse JSON into your Company model; update this to match your JSON structure
+        return Company.fromJson(data['profile'] ?? data); // adjust if profile is wrapped
       } else {
-        _selectedProfile = null;
+        debugPrint(
+            "Failed to fetch market data for $symbol: ${response.statusCode}");
+        return null;
       }
     } catch (e) {
-      _selectedProfile = null;
-    } finally {
-      _loadingDetails = false;
-      notifyListeners();
+      debugPrint("Error fetching market data for $symbol: $e");
+      return null;
     }
-  }
-
-  void clearSelectedCompany() {
-    _selectedProfile = null;
-    notifyListeners();
   }
 }

@@ -36,13 +36,13 @@ class StocksScreen extends StatelessWidget {
           itemCount: provider.companies.length,
           itemBuilder: (context, index) {
             final Company company = provider.companies[index];
-            final price = company.price ?? company.currentPrice;
-            final change = company.change ?? 0.0;
+            final price = company.price;
+            final change = 0.0; // Placeholder, add logic if available
 
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
-                title: Text(company.name ?? company.symbol),
+                title: Text(company.companyName ?? company.symbol),
                 subtitle: Row(
                   children: [
                     Text("Price: ${price?.toStringAsFixed(2) ?? '-'}  "),

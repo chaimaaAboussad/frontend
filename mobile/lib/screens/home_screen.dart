@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import '../providers/company_provider.dart';
 import '../models/company.dart';
 import 'company_details_screen.dart';
@@ -18,36 +19,21 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String selectedStandard = "AAOIFI";
+  String searchQuery = "";
 
   @override
   void initState() {
     super.initState();
+    // Fetch companies immediately
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = Provider.of<CompanyProvider>(context, listen: false);
       await provider.fetchCompanies();
-
-      // Optionally select the first company automatically
-      if (provider.companies.isNotEmpty) {
-        final firstCompany = provider.companies.first;
-        await provider.fetchCompanyDetails(firstCompany.symbol);
-      }
     });
   }
 
   String _fmtNum(num? v, {int frac = 2}) {
     if (v == null) return "-";
     return v.toStringAsFixed(frac);
-  }
-
-  String _fmtChange(num? v) {
-    if (v == null) return "-";
-    final sign = v >= 0 ? "+" : "";
-    return "$sign${_fmtNum(v)}%";
-  }
-
-  Color _changeColor(num? v) {
-    if (v == null) return Colors.grey;
-    return v >= 0 ? Colors.green : Colors.red;
   }
 
   Widget _compliancePill(bool? compliant) {
@@ -96,7 +82,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<CompanyProvider>(context);
-    final isAdmin = widget.userRole.toLowerCase() == "admin";
+    final filteredCompanies = provider.companies.where((c) {
+      final query = searchQuery.toLowerCase();
+      return c.companyName?.toLowerCase().contains(query) == true ||
+          c.symbol.toLowerCase().contains(query);
+    }).toList();
 
     return Scaffold(
       key: _scaffoldKey,
@@ -122,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
               "STOXX"
             ].map((e) => DropdownMenuItem<String>(
               value: e,
-              child: Text(e, style: TextStyle(color: Colors.white)),
+              child: Text(e, style: const TextStyle(color: Colors.white)),
             )).toList(),
           ),
           IconButton(
@@ -162,20 +152,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.info, color: Colors.blue),
-                title:
-                const Text("About Us", style: TextStyle(fontWeight: FontWeight.w500)),
+                title: const Text("About Us", style: TextStyle(fontWeight: FontWeight.w500)),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AboutUsScreen()));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutUsScreen()));
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.red),
-                title:
-                const Text("Logout", style: TextStyle(fontWeight: FontWeight.w500)),
+                title: const Text("Logout", style: TextStyle(fontWeight: FontWeight.w500)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushAndRemoveUntil(
@@ -189,71 +174,85 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      body: provider.loadingCompanies
-          ? const Center(child: CircularProgressIndicator())
-          : provider.companies.isEmpty
-          ? RefreshIndicator(
-        onRefresh: () => provider.fetchCompanies(),
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 120),
-            Center(child: Text("No companies found")),
-          ],
-        ),
-      )
-          : RefreshIndicator(
-        onRefresh: () => provider.fetchCompanies(),
-        child: ListView.builder(
-          itemCount: provider.companies.length,
-          itemBuilder: (context, index) {
-            final Company company = provider.companies[index];
+      body: Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: "Search companies by name or symbol",
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (val) => setState(() => searchQuery = val),
+            ),
+          ),
+          Expanded(
+            child: provider.loadingCompanies
+                ? ListView.builder(
+              itemCount: 8,
+              itemBuilder: (context, index) => Shimmer.fromColors(
+                baseColor: Colors.grey.shade300,
+                highlightColor: Colors.grey.shade100,
+                child: ListTile(
+                  leading: Container(width: 40, height: 40, color: Colors.white),
+                  title: Container(height: 16, color: Colors.white),
+                  subtitle: Container(height: 14, margin: const EdgeInsets.only(top: 4), color: Colors.white),
+                ),
+              ),
+            )
+                : filteredCompanies.isEmpty
+                ? RefreshIndicator(
+              onRefresh: () => provider.fetchCompanies(),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 120),
+                  Center(child: Text("No companies found")),
+                ],
+              ),
+            )
+                : RefreshIndicator(
+              onRefresh: () => provider.fetchCompanies(),
+              child: ListView.builder(
+                itemCount: filteredCompanies.length,
+                itemBuilder: (context, index) {
+                  final Company company = filteredCompanies[index];
+                  final compliant = company.shariahCompliant;
 
-            final price = company.price ?? company.currentPrice;
-            final change = company.change ?? 0.0;
-            final compliant = company.shariahCompliant;
-
-            return Card(
-              margin: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 8),
-              child: ListTile(
-                onTap: () async {
-                  await provider.fetchCompanyDetails(company.symbol);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CompanyDetailsScreen(
-                        symbol: company.symbol,
-                        userRole: widget.userRole,
-                        name: company.name ?? "Unknown",
-                        standard: selectedStandard,
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: ListTile(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CompanyDetailsScreen(
+                              company: company,
+                              userRole: widget.userRole,
+                              standard: selectedStandard,
+                            ),
+                          ),
+                        );
+                      },
+                      title: Text(company.companyName ?? company.symbol),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Sector: ${company.sector ?? "-"}"),
+                          if (company.price != null)
+                            Text("Price: ${_fmtNum(company.price)}"),
+                        ],
                       ),
+                      trailing: _compliancePill(compliant),
                     ),
                   );
                 },
-                title: Text(company.name ?? company.symbol),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Sector: ${company.sector ?? "-"}"),
-                    if (price != null)
-                      Row(
-                        children: [
-                          Text("Price: ${_fmtNum(price)}  "),
-                          Text(
-                            "Change: ${_fmtChange(change)}",
-                            style:
-                            TextStyle(color: _changeColor(change)),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-                trailing: _compliancePill(compliant),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,

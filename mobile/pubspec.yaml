@@ -11,6 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  shimmer: ^3.0.0
+
   # iOS-style icons
   cupertino_icons: ^1.0.8
 
