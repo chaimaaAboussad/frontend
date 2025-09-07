@@ -11,24 +11,26 @@ class CompanyProvider with ChangeNotifier {
 
   final String baseUrl = "http://10.0.2.2:8080/api";
 
-  // Local list of company symbols to fetch data for
+  // Local list of company symbols to fetch
   final List<String> symbols = ["AAPL", "MSFT", "GOOGL"];
 
-  /// Fetch data for all companies from local symbols list
+  /// Fetch data for all companies
   Future<void> fetchCompanies() async {
     loadingCompanies = true;
     notifyListeners();
 
-    try {
-      List<Company> results = [];
+    List<Company> results = [];
 
-      // Fetch combined data for each symbol in parallel
-      await Future.wait(symbols.map((symbol) async {
+    try {
+      for (String symbol in symbols) {
         final company = await fetchMarketData(symbol);
         if (company != null) {
           results.add(company);
+          debugPrint("Added company: ${company.symbol}");
+        } else {
+          debugPrint("Company $symbol returned null");
         }
-      }));
+      }
 
       _companies = results;
     } catch (e) {
@@ -40,23 +42,31 @@ class CompanyProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fetch market data for a single company symbol from /market/combined endpoint
+  /// Fetch a single company's market data
   Future<Company?> fetchMarketData(String symbol) async {
     try {
       final response =
       await http.get(Uri.parse("$baseUrl/market/combined?symbol=$symbol"));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
 
-        // Parse JSON into your Company model; update this to match your JSON structure
-        return Company.fromJson(data['profile'] ?? data); // adjust if profile is wrapped
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        debugPrint("Raw response for $symbol: $data");
+
+        // Adjust parsing depending on whether profile is wrapped
+        final profileData = data['profile'] ?? data;
+
+        // Make sure all fields expected by your Company model are present
+        final company = Company.fromJson(profileData);
+
+        debugPrint("Parsed company: ${company.symbol}");
+        return company;
       } else {
         debugPrint(
-            "Failed to fetch market data for $symbol: ${response.statusCode}");
+            "Failed to fetch $symbol: ${response.statusCode} ${response.reasonPhrase}");
         return null;
       }
     } catch (e) {
-      debugPrint("Error fetching market data for $symbol: $e");
+      debugPrint("Exception fetching $symbol: $e");
       return null;
     }
   }

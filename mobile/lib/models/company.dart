@@ -51,26 +51,39 @@ class Company {
   factory Company.fromJson(Map<String, dynamic> json) {
     return Company(
       symbol: json['symbol'],
-      companyName: json['companyName'],
+      companyName: json['companyName'] ?? json['name'],
       sector: json['sector'],
       industry: json['industry'],
       description: json['description'],
       employees: json['employees'],
       website: json['website'],
-      logoUrl: json['logoUrl'],
+      logoUrl: json['logo'] ?? json['logoUrl'],
       iconUrl: json['iconUrl'],
-      price: (json['price'] as num?)?.toDouble(),
-      mktCap: (json['mktCap'] as num?)?.toDouble(),
-      totalAssets: (json['totalAssets'] as num?)?.toDouble(),
-      enterpriseValue: (json['enterpriseValue'] as num?)?.toDouble(),
-      sharesOutstanding: (json['sharesOutstanding'] as num?)?.toDouble(),
-      totalDebt: (json['totalDebt'] as num?)?.toDouble(),
-      totalRevenue: (json['totalRevenue'] as num?)?.toDouble(),
-      cash: (json['cash'] as num?)?.toDouble(),
-      shortTermInvestments: (json['shortTermInvestments'] as num?)?.toDouble(),
-      accountsReceivable: (json['accountsReceivable'] as num?)?.toDouble(),
-      interestIncome: (json['interestIncome'] as num?)?.toDouble(),
-      shariahCompliant: json['shariahCompliant'],
+      // Financial fields
+      price: (json['price'] ?? json['marketData']?['price'])?.toDouble(),
+      mktCap: (json['marketCap'] ?? json['marketData']?['marketCap'])?.toDouble(),
+      enterpriseValue:
+      (json['enterpriseValue'] ?? json['marketData']?['enterpriseValue'])
+          ?.toDouble(),
+      sharesOutstanding:
+      (json['sharesOutstanding'] ?? json['marketData']?['sharesOutstanding'])
+          ?.toDouble(),
+      totalAssets: (json['totalAssets'] ?? json['financials']?['totalAssets'])
+          ?.toDouble(),
+      totalRevenue:
+      (json['totalRevenue'] ?? json['financials']?['totalRevenue'])?.toDouble(),
+      totalDebt: (json['totalDebt'] ?? json['financials']?['totalDebt'])?.toDouble(),
+      cash: (json['cash'] ?? json['financials']?['cash'])?.toDouble(),
+      shortTermInvestments: (json['shortTermInvestments'] ??
+          json['financials']?['shortTermInvestments'])
+          ?.toDouble(),
+      accountsReceivable:
+      (json['accountsReceivable'] ?? json['financials']?['accountsReceivable'])
+          ?.toDouble(),
+      interestIncome:
+      (json['interestIncome'] ?? json['financials']?['interestIncome'])?.toDouble(),
+      shariahCompliant: json['shariahCompliant'] ?? json['shariah']?['compliant'],
     );
   }
+
 }
