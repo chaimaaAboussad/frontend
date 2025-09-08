@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: const [
             SizedBox(height: 120),
-            Center(child: Text("No companies found")),
+            Center(child: Text("Not found")),
           ],
         ),
       )
