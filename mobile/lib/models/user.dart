@@ -13,7 +13,7 @@ class User {
     return User(
       id: json['id'] as int,
       username: json['username'] ?? '',
-      role: json['role'] ?? 'client',
+      role: (json['role'] as String?) ?? 'client',
     );
   }
 }

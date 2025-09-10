@@ -5,6 +5,8 @@ import '../models/company.dart';
 import 'company_details_screen.dart';
 import 'AboutUsScreen.dart';
 import 'LoginScreen.dart';
+import 'package:mobile/screens/admin_dashboard.dart';
+
 
 class HomeScreen extends StatefulWidget {
   final String userRole;
@@ -53,11 +55,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: fg.withOpacity(0.2)),
+        border: Border.all(color: fg.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: fg.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(1, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -78,18 +87,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ---------------- Admin role check ----------------
+    if (widget.userRole.toLowerCase() == "admin") {
+      return AdminDashboard();
+      // show admin dashboard only
+    }
+
+    // ---------------- Normal user UI ----------------
     final provider = Provider.of<CompanyProvider>(context);
 
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
-        title: Text("ETF & Stock Screener (${widget.userRole.toUpperCase()})"),
+        elevation: 2,
+        backgroundColor: Colors.green.shade600,
+        title: Text(
+          "Market (${widget.userRole.toUpperCase()})",
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+            color: Colors.white,
+          ),
+        ),
         actions: [
           DropdownButton<String>(
             value: selectedStandard,
-            icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+            icon: Icon(Icons.arrow_drop_down, color: Colors.white),
             underline: const SizedBox(),
-            dropdownColor: Colors.blueGrey,
+            dropdownColor: Colors.green.shade700,
             onChanged: (val) {
               if (val != null) setState(() => selectedStandard = val);
             },
@@ -105,12 +130,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ]
                 .map((e) => DropdownMenuItem<String>(
               value: e,
-              child: Text(e, style: const TextStyle(color: Colors.white)),
+              child: Text(
+                e,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ))
                 .toList(),
           ),
           IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black),
+            icon: const Icon(Icons.menu, color: Colors.white),
             onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
             tooltip: "Menu",
           ),
@@ -124,36 +155,34 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         child: Container(
-          color: Colors.blue.shade50,
+          color: Colors.green.shade50,
           child: ListView(
             children: [
-              const DrawerHeader(
+              DrawerHeader(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.blue, Colors.lightBlueAccent],
+                    colors: [Colors.green.shade700, Colors.greenAccent.shade400],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                 ),
-                child: Text(
+                child: const Text(
                   "Menu",
                   style: TextStyle(
-                    color: Colors.black,
+                    color: Colors.white,
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.info, color: Colors.blue),
+                leading: const Icon(Icons.info, color: Colors.green),
                 title: const Text("About Us",
                     style: TextStyle(fontWeight: FontWeight.w500)),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AboutUsScreen()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const AboutUsScreen()));
                 },
               ),
               ListTile(
@@ -178,47 +207,94 @@ class _HomeScreenState extends State<HomeScreen> {
           : provider.companies.isEmpty
           ? RefreshIndicator(
         onRefresh: () => provider.fetchCompanies(),
-        child: ListView(
+        child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 120),
-            Center(child: Text("Not found")),
-          ],
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height - 150,
+            child: const Center(
+              child: Text(
+                "Not found",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey),
+              ),
+            ),
+          ),
         ),
       )
           : RefreshIndicator(
         onRefresh: () => provider.fetchCompanies(),
         child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
           itemCount: provider.companies.length,
           itemBuilder: (context, index) {
             final Company company = provider.companies[index];
 
             return Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               margin: const EdgeInsets.symmetric(
                   horizontal: 16, vertical: 8),
+              shadowColor: Colors.black.withOpacity(0.1),
               child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                    vertical: 8, horizontal: 16),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => CompanyDetailsScreen(
-                        company: company,           // Pass full company object
+                        company: company,
                         userRole: widget.userRole,
                         standard: selectedStandard,
                       ),
                     ),
                   );
                 },
-                leading: company.logoUrl != null
-                    ? Image.network(company.logoUrl!, height: 40)
-                    : const Icon(Icons.business),
-                title: Text(company.companyName ?? company.symbol),
+                leading: company.logoUrl != null &&
+                    company.logoUrl!.isNotEmpty
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.network(
+                    company.logoUrl!,
+                    height: 40,
+                    width: 40,
+                    fit: BoxFit.cover,
+                    errorBuilder:
+                        (context, error, stackTrace) =>
+                    const Icon(Icons.broken_image,
+                        color: Colors.grey),
+                    loadingBuilder:
+                        (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const SizedBox(
+                        height: 40,
+                        width: 40,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2),
+                        ),
+                      );
+                    },
+                  ),
+                )
+                    : const Icon(Icons.business, color: Colors.green),
+                title: Text(company.companyName ?? company.symbol,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Sector: ${company.sector ?? "-"}"),
+                    Text("Sector: ${company.sector ?? "-"}",
+                        style: const TextStyle(
+                            color: Colors.black54, fontSize: 13)),
                     if (company.price != null)
-                      Text("Price: ${_fmtNum(company.price)}"),
+                      Text("Price: ${_fmtNum(company.price)}",
+                          style: const TextStyle(
+                              color: Colors.black87, fontSize: 13)),
                   ],
                 ),
                 trailing: _compliancePill(company.shariahCompliant),
@@ -227,14 +303,21 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: widget.userRole.toLowerCase() == "admin"
+          ? null
+          : BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.green.shade50,
+        selectedItemColor: Colors.green.shade700,
+        unselectedItemColor: Colors.grey.shade700,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Stocks"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.show_chart), label: "Stocks"),
           BottomNavigationBarItem(
               icon: Icon(Icons.account_balance), label: "ETF"),
-          BottomNavigationBarItem(icon: Icon(Icons.star), label: "Watchlist"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.star), label: "Watchlist"),
         ],
         onTap: (index) {
           switch (index) {
